@@ -347,25 +347,45 @@ class LIFNetwork_GaussianWeight:
         offdiag = C[~np.eye(C.shape[0], dtype=bool)]
 
         # ===== 5) Plotting =====
-        fig, ax = plt.subplots(2, 1, figsize=figsize)
+        fig, ax = plt.subplots(3, 1, figsize=figsize)
 
-        # ---- (A) Eigen-spectrum ----
+        # ---- (A) Eigen-spectrum (index based)) ----
         ax[0].loglog(eigvals, marker='o', markersize=4, linestyle='-')
         ax[0].set_xlabel("Eigenvalue index")
         ax[0].set_ylabel("Eigenvalue magnitude")
         ax[0].set_title("Eigen-spectrum of Covariance Matrix (log-log)")
         ax[0].grid(True, which="both", ls="--", alpha=0.4)
 
-        # ---- (B) Covariance distribution ----
-        ax[1].hist(offdiag, bins=100, alpha=0.75, color='gray')
+        # ---- (B) Eigenvalue distribution (log-binned style) ----
+        # use absolute value just in case, though covariance eigenvalues should be >= 0
+        abs_eigs = np.abs(eigvals)
+
+        # histogram in linear space, density=True gives PDF estimate
+        counts, bin_edges = np.histogram(abs_eigs, bins=100000, density=True)
+
+        # bin centers
+        centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+        # only keep bins with non-zero density (log(0) is invalid)
+        mask = counts > 0
+
+        ax[1].loglog(centers[mask], counts[mask], marker='o', linestyle='none')
+
+        ax[1].set_xlabel("Eigenvalue")
+        ax[1].set_ylabel("Probability density")
+        ax[1].set_title("Distribution of Eigenvalues (log-log)")
+        ax[1].grid(True, which="both", ls="--", alpha=0.4)
+        
+        # ---- (C) Covariance distribution ----
+        ax[2].hist(offdiag, bins=100000, alpha=0.75, color='gray')
 
         if loglog_cov:
-            ax[1].set_xscale("log")
-            ax[1].set_yscale("log")
+            ax[2].set_xscale("log")
+            ax[2].set_yscale("log")
 
-        ax[1].set_xlabel("Covariance value")
-        ax[1].set_ylabel("Count")
-        ax[1].set_title("Distribution of Off-Diagonal Covariances")
+        ax[2].set_xlabel("Covariance value")
+        ax[2].set_ylabel("Count")
+        ax[2].set_title("Distribution of Off-Diagonal Covariances")
 
         plt.tight_layout()
         plt.show()
@@ -731,7 +751,7 @@ class LIFNetwork_PowerLawWeight:
         offdiag = C[~np.eye(C.shape[0], dtype=bool)]
 
         # ===== 5) Plotting =====
-        fig, ax = plt.subplots(2, 1, figsize=figsize)
+        fig, ax = plt.subplots(3, 1, figsize=figsize)
 
         # ---- (A) Eigen-spectrum ----
         ax[0].loglog(eigvals, marker='o', markersize=4, linestyle='-')
@@ -740,16 +760,61 @@ class LIFNetwork_PowerLawWeight:
         ax[0].set_title("Eigen-spectrum of Covariance Matrix (log-log)")
         ax[0].grid(True, which="both", ls="--", alpha=0.4)
 
-        # ---- (B) Covariance distribution ----
-        ax[1].hist(offdiag, bins=100, alpha=0.75, color='gray')
+        # ---- (B) Eigenvalue distribution (log-binned style) ----
+        # use absolute value just in case, though covariance eigenvalues should be >= 0
+        abs_eigs = np.abs(eigvals)
+
+        # histogram in linear space, density=True gives PDF estimate
+        counts, bin_edges = np.histogram(abs_eigs, bins=1000000, density=True)
+
+        # bin centers
+        centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+        # only keep bins with non-zero density (log(0) is invalid)
+        mask = counts > 0
+
+        ax[1].loglog(centers[mask], counts[mask], marker='o', linestyle='none')
+
+        ax[1].set_xlabel("Eigenvalue")
+        ax[1].set_ylabel("Probability density")
+        ax[1].set_title("Distribution of Eigenvalues (log-log)")
+        ax[1].grid(True, which="both", ls="--", alpha=0.4)
+        
+        # ---- (C) Covariance distribution ----
+        pos = offdiag[offdiag > 0]
+        neg = offdiag[offdiag < 0]
+        neg_abs = -neg
+        all_abs = np.concatenate([pos, neg_abs])
+        
+        n_bins = 10000
+        bins = np.logspace(np.log10(all_abs.min()), np.log10(all_abs.max()), n_bins)
+        
+        if pos.size > 0:
+            ax[2].hist(pos,
+                    bins=bins,
+                    density=True,
+                    alpha=0.5,
+                    color="lightgreen",
+                    label=r"$C_{ij} > 0$")
+
+        if neg_abs.size > 0:
+            ax[2].hist(neg_abs,
+                    bins=bins,
+                    density=True,
+                    alpha=0.5,
+                    color="lightblue",
+                    label=r"$C_{ij} < 0$")
+        
+        # ax[2].hist(offdiag, bins=100000, alpha=0.75, color='gray', density=True)
 
         if loglog_cov:
-            ax[1].set_xscale("log")
-            ax[1].set_yscale("log")
+            ax[2].set_xscale("log")
+            ax[2].set_yscale("log")
 
-        ax[1].set_xlabel("Covariance value")
-        ax[1].set_ylabel("Count")
-        ax[1].set_title("Distribution of Off-Diagonal Covariances")
+        ax[2].set_xlabel("Covariance value")
+        ax[2].set_ylabel(r"$P/(C_{ij}/)$")
+        ax[2].set_title("Distribution of Off-Diagonal Covariances")
+        ax[2].legend()
 
         plt.tight_layout()
         plt.show()
