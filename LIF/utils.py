@@ -377,15 +377,41 @@ class LIFNetwork_GaussianWeight:
         ax[1].grid(True, which="both", ls="--", alpha=0.4)
         
         # ---- (C) Covariance distribution ----
-        ax[2].hist(offdiag, bins=100000, alpha=0.75, color='gray')
-
-        if loglog_cov:
-            ax[2].set_xscale("log")
-            ax[2].set_yscale("log")
-
+        pos = offdiag[offdiag > 0]
+        neg = offdiag[offdiag < 0]
+        neg_abs = -neg
+        all_abs = np.concatenate([pos, neg_abs])
+        
+        n_bins = 10000
+        bins = np.linspace(all_abs.min(), all_abs.max(), n_bins + 1)
+        centers = 0.5 * (bins[:-1] + bins[1:])
+        
+        def plot_hist_line(data, label, **plot_kwargs):
+            if data.size == 0:
+                return
+            counts, _ = np.histogram(data, bins=bins, density=True)
+            mask = counts > 0
+            if loglog_cov:
+                ax[2].loglog(
+                    centers[mask], counts[mask],
+                    marker='o', linestyle='none',
+                    label=label, **plot_kwargs
+                )
+            else:
+                ax[2].plot(
+                    centers[mask], counts[mask],
+                    marker='o', linestyle='none',
+                    label=label, **plot_kwargs
+                )
+        
+        plot_hist_line(all_abs, label=r"$|C_{ij}|$",        color="grey",   alpha=0.3)
+        plot_hist_line(pos,     label=r"$C_{ij} > 0$",      color="#A3D78A", alpha=0.3)
+        plot_hist_line(neg_abs, label=r"$|C_{ij}|,\ C_{ij}<0$", color="#FF5555", alpha=0.3)
+        
         ax[2].set_xlabel("Covariance value")
-        ax[2].set_ylabel("Count")
+        ax[2].set_ylabel(r"$P(C_{ij})$")
         ax[2].set_title("Distribution of Off-Diagonal Covariances")
+        ax[2].legend()
 
         plt.tight_layout()
         plt.show()
@@ -465,8 +491,8 @@ class LIFNetwork_PowerLawWeight:
         # Initialize empty weight matrix
         self.W = np.zeros((self.N, self.N), dtype=np.float64)
 
-        w_min_E = w_scale     # minimum excitatory weight
-        w_min_I = 4 * w_scale # inhibitory minimum magnitude (I stronger)
+        w_min_E = w_scale * ((self.pareto_mu-1)/self.pareto_mu)     # minimum excitatory weight
+        w_min_I = 4 * w_scale * ((self.pareto_mu-1)/self.pareto_mu) # inhibitory minimum magnitude (I stronger)
 
         # ----- 1) Excitatory → all (positive Pareto weights) -----
         mask_E = (np.random.rand(NE, self.N) < pE)
@@ -787,32 +813,43 @@ class LIFNetwork_PowerLawWeight:
         all_abs = np.concatenate([pos, neg_abs])
         
         n_bins = 10000
-        bins = np.logspace(np.log10(all_abs.min()), np.log10(all_abs.max()), n_bins)
+        bins = np.linspace(all_abs.min(), all_abs.max(), n_bins + 1)
+        centers = 0.5 * (bins[:-1] + bins[1:])
         
-        if pos.size > 0:
-            ax[2].hist(pos,
-                    bins=bins,
-                    density=True,
-                    alpha=0.5,
-                    color="lightgreen",
-                    label=r"$C_{ij} > 0$")
-
-        if neg_abs.size > 0:
-            ax[2].hist(neg_abs,
-                    bins=bins,
-                    density=True,
-                    alpha=0.5,
-                    color="lightblue",
-                    label=r"$C_{ij} < 0$")
+        # ax[2].hist(all_abs, bins=10000, alpha=0.5, color='grey', density=True, label=r"$|C_{ij}|$")
+        # ax[2].hist(pos, bins=10000, alpha=0.5, color='#A3D78A', density=True, label=r"$C_{ij} \, > \, 0$")
+        # ax[2].hist(neg_abs, bins=10000, alpha=0.5, color='#FF5555', density=True, label=r"$|C_{ij}| \: for \: C_{ij} \, < \, 0$")
         
         # ax[2].hist(offdiag, bins=100000, alpha=0.75, color='gray', density=True)
 
-        if loglog_cov:
-            ax[2].set_xscale("log")
-            ax[2].set_yscale("log")
+        # if loglog_cov:
+        #     ax[2].set_xscale("log")
+        #     ax[2].set_yscale("log")
 
+        def plot_hist_line(data, label, **plot_kwargs):
+            if data.size == 0:
+                return
+            counts, _ = np.histogram(data, bins=bins, density=True)
+            mask = counts > 0
+            if loglog_cov:
+                ax[2].loglog(
+                    centers[mask], counts[mask],
+                    marker='o', linestyle='none',
+                    label=label, **plot_kwargs
+                )
+            else:
+                ax[2].plot(
+                    centers[mask], counts[mask],
+                    marker='o', linestyle='none',
+                    label=label, **plot_kwargs
+                )
+        
+        plot_hist_line(all_abs, label=r"$|C_{ij}|$",        color="grey",   alpha=0.3)
+        plot_hist_line(pos,     label=r"$C_{ij} > 0$",      color="#A3D78A", alpha=0.3)
+        plot_hist_line(neg_abs, label=r"$|C_{ij}|,\ C_{ij}<0$", color="#FF5555", alpha=0.3)
+        
         ax[2].set_xlabel("Covariance value")
-        ax[2].set_ylabel(r"$P/(C_{ij}/)$")
+        ax[2].set_ylabel(r"$P(C_{ij})$")
         ax[2].set_title("Distribution of Off-Diagonal Covariances")
         ax[2].legend()
 
